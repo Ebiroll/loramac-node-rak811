@@ -56,7 +56,7 @@ I2c_t I2c;
 Uart_t Uart1;
 Uart_t Uart2;
 Uart_t Uart3;
-Uart_t GpsUart;
+Uart_t Uart3;
 #if defined( USE_USB_CDC )
 Uart_t UartUsb;
 #endif

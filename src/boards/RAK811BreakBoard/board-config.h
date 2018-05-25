@@ -66,7 +66,7 @@
 #define GPS_POWER_ON                                PA_15
 #define GPS_UART_TX                                 PB_10
 #define GPS_UART_RX                                 PB_11
-#define GPS_PPS                                     PA_0
+//#define GPS_PPS                                     PA_0
 
 #define BAT_LEVEL_PIN                               PA_2
 #define BAT_LEVEL_CHANNEL                           ADC_CHANNEL_2
