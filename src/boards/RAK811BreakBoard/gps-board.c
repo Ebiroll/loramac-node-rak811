@@ -23,10 +23,11 @@ Maintainer: Miguel Luis and Gregory Cristian
 /*!
  * FIFO buffers size
  */
-//#define FIFO_TX_SIZE                                128
-//#define FIFO_RX_SIZE                                128
+#define GPS_FIFO_TX_SIZE                                128
+#define GPS_FIFO_RX_SIZE                                128
 
-//uint8_t TxBuffer[FIFO_TX_SIZE];
+
+uint8_t GpsRxBuffer[GPS_FIFO_RX_SIZE];
 
 
 /*!
@@ -42,7 +43,7 @@ uint8_t NmeaStringSize = 0;
 Gpio_t GpsPowerEn;
 Gpio_t GpsPps;
 
-extern Uart_t GpsUart;
+extern Uart_t Uart3;
 
 PpsTrigger_t PpsTrigger;
 
@@ -55,8 +56,8 @@ void GpsMcuOnPpsSignal( void )
 
     if( parseData == true )
     {
-        UartInit( &GpsUart, GPS_UART, GPS_UART_TX, GPS_UART_RX );
-        UartConfig( &GpsUart, RX_ONLY, 9600, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
+        UartInit( &Uart3, GPS_UART, GPS_UART_TX, GPS_UART_RX );
+        UartConfig( &Uart3, RX_ONLY, 9600, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
     }
 #endif
 }
@@ -84,17 +85,26 @@ void GpsMcuInit( void )
 
     GpioInit( &GpsPowerEn, GPS_POWER_ON, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
 
+#ifdef GPS_PPS     
     GpioInit( &GpsPps, GPS_PPS, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
     GpioSetInterrupt( &GpsPps, IRQ_FALLING_EDGE, IRQ_VERY_LOW_PRIORITY, &GpsMcuOnPpsSignal );
+#endif
 
-    //FifoInit( &GpsUart.FifoRx, RxBuffer, FIFO_RX_SIZE );
-    GpsUart.IrqNotify = GpsMcuIrqNotify;
+    FifoInit( &Uart3.FifoRx, GpsRxBuffer, GPS_FIFO_RX_SIZE );
+    Uart3.IrqNotify = GpsMcuIrqNotify;
 
     GpsMcuStart( );
 
+    volatile uint32_t count = 0;
+    Gpio_t UartTxPin;
+    GpioInit ( &UartTxPin, GPS_UART_RX, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0);
+    while(!GpioRead(&UartTxPin)) count++;
+    while(GpioRead(&UartTxPin)) count++;
+    while(!GpioRead(&UartTxPin)) count++;
+
 #ifndef GPS_PPS     
-    UartInit( &GpsUart, GPS_UART, GPS_UART_TX, GPS_UART_RX );
-    UartConfig( &GpsUart, RX_ONLY, 9600, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
+    UartInit( &Uart3, GPS_UART, GPS_UART_TX, GPS_UART_RX );
+    UartConfig( &Uart3, RX_ONLY, 9600, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
 #endif   
 }
 
@@ -118,7 +128,7 @@ void GpsMcuIrqNotify( UartNotifyId_t id )
     uint8_t data;
     if( id == UART_NOTIFY_RX )
     {
-        if( UartGetChar( &GpsUart, &data ) == 0 )
+        if( UartGetChar( &Uart3, &data ) == 0 )
         {
             if( ( data == '$' ) || ( NmeaStringSize >= 127 ) )
             {
@@ -133,7 +143,7 @@ void GpsMcuIrqNotify( UartNotifyId_t id )
 							  //printf("%d\n",NmeaStringSize);
                 GpsParseGpsData( ( int8_t* )NmeaString, NmeaStringSize );
 #ifdef GPS_PPS   
-                UartDeInit( &GpsUart );
+                UartDeInit( &Uart3 );
 #endif
                 BlockLowPowerDuringTask ( false );
             }
